@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useState, useEffect } from "react";
 import React from "react";
 import Link from "next/link";
-import supabase from "./supabaseClient";
+import supabase from "./api/supabaseClient";
 
 // https://vcbwmzeulqsaazygypsh.supabase.co/storage/v1/object/public/images/00636e73-9cc4-4f73-9852-41e7c3fdf308
 
