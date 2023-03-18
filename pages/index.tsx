@@ -4,6 +4,8 @@ import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import { v4 as uuidv4 } from "uuid";
 import { useState, useEffect } from "react";
 import React from "react";
+import Link from "next/link";
+import supabase from "./supabaseClient";
 
 // https://vcbwmzeulqsaazygypsh.supabase.co/storage/v1/object/public/images/00636e73-9cc4-4f73-9852-41e7c3fdf308
 
@@ -15,10 +17,32 @@ export default function Home() {
 
     const [images, setImages] = useState<any>([]);
 
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
+    const [userId, setUserId] = useState<string | undefined>();
+
+    useEffect(() => {
+        const getUser = async () => {
+            const user = await supabase.auth.getUser();
+            console.log("user", user);
+            if (user) {
+                const userId = user.data.user?.id;
+                setIsAuthenticated(true);
+                setUserId(userId);
+            }
+        };
+        getUser();
+    }, []);
+
+    async function signOut() {
+        await supabase.auth.signOut();
+        setIsAuthenticated(false);
+    }
+
     async function getImages() {
         const { data, error } = await supabase.storage
             .from("images")
-            .list("", { limit: 100, sortBy: { column: "name", order: "asc" } });
+            .list("", { limit: 100 });
 
         if (data !== null) {
             setImages(data);
@@ -26,6 +50,19 @@ export default function Home() {
         } else {
             alert("Error loading images");
             console.log(error);
+        }
+    }
+
+    async function deleteImage(image: any) {
+        const { error } = await supabase.storage
+            .from("images")
+            .remove([image.name]);
+
+        if (error) {
+            console.log(error);
+            alert("error");
+        } else {
+            getImages();
         }
     }
 
@@ -71,16 +108,35 @@ export default function Home() {
                     style={{ display: "none" }}
                     onChange={(e) => uploadImage(e)}
                 />
-                <h1>Sign in</h1>
+                {isAuthenticated ? (
+                    <button onClick={() => signOut()}>Sign Out</button>
+                ) : (
+                    <Link href={"/login"}>Sign In</Link>
+                )}
             </div>
-
-            <div className="max-w-2xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:max-w-7xl lg:px-8">
-                <div className="grid grid-cols-1 gap-y-10 sm:grid-cols-2 gap-x-6 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
-                    {images.map((image: any) => (
-                        <BlurImage key={image} image={CDNURL + image.name} />
-                    ))}
+            {images.length >= 1 ? (
+                <div className="max-w-2xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:max-w-7xl lg:px-8">
+                    <div className="grid grid-cols-1 gap-y-10 sm:grid-cols-2 gap-x-6 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
+                        {images.map((image: any) => (
+                            <div>
+                                <BlurImage
+                                    key={image}
+                                    image={CDNURL + image.name}
+                                />
+                                {isAuthenticated ? (
+                                    <button onClick={() => deleteImage(image)}>
+                                        Delete
+                                    </button>
+                                ) : (
+                                    ""
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            ) : (
+                ""
+            )}
         </>
     );
 }
@@ -89,48 +145,23 @@ function BlurImage({ key, image }: { key: any; image: any }) {
     const [isLoading, setLoading] = useState(true);
 
     return (
-        <a href={image.href} className="group">
-            <div
-                className="aspect-w-1 aspect-h-1 xl:aspect-w-7 xl:aspect-h-8 w-full
+        <div
+            className="aspect-w-1 aspect-h-1 xl:aspect-w-7 xl:aspect-h-8 w-full
     overflow-hidden rounded-lg bg-gray-200"
-            >
-                <Image
-                    alt=""
-                    src={image}
-                    fill
-                    style={{ objectFit: "cover" }}
-                    className={`group-hover:opacity-75 duration-700 ease-in-out
+        >
+            <Image
+                alt=""
+                src={image}
+                fill
+                style={{ objectFit: "cover" }}
+                className={` duration-700 ease-in-out
                     ${
                         isLoading
                             ? "grayscale blur-2xl scale-110"
                             : "grayscale-0 blur-0 scale-100"
                     }`}
-                    onLoadingComplete={() => setLoading(false)}
-                />
-            </div>
-        </a>
-
-        //     <a href={image} className="">
-        //         <div
-        //             className="
-        // overflow-hidden rounded-lg"
-        //         >
-        //             <Image
-        //                 key={key}
-        //                 alt=""
-        //                 src={image}
-        //                 width={100}
-        //                 height={100}
-        //                 style={{ objectFit: "fill" }}
-        //                 className={`group-hover:opacity-75 w-full object- duration-700 ease-in-out
-        //                 ${
-        //                     isLoading
-        //                         ? "grayscale blur-2xl scale-110"
-        //                         : "grayscale-0 blur-0 scale-100"
-        //                 }`}
-        //                 onLoadingComplete={() => setLoading(false)}
-        //             />
-        //         </div>
-        //     </a>
+                onLoadingComplete={() => setLoading(false)}
+            />
+        </div>
     );
 }
